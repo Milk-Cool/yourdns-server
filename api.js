@@ -1,4 +1,4 @@
-import { pushRecord, recordTypes, updateRecord } from "./index.js";
+import { deleteRecordByID, getRecordByID, pushRecord, recordTypes, updateRecord } from "./index.js";
 import express from "express";
 import Validator from "./validator.js";
 import { REGEX_UUID } from "./regex.js";
@@ -16,6 +16,7 @@ const errorMsgs = {
     badRequest: "Bad request!",
     invalidType: "Invalid type!",
     invalidID: "Invalid ID!",
+    recordNotFound: "Record not found!",
 };
 /** @type {Record<keyof typeof errorMsgs, ErrorObj>} */
 const errors = Object.fromEntries(Object.entries(errorMsgs).map(x => [x[0], makeError(x[1])]));
@@ -38,14 +39,27 @@ const validateRecordBase = (req, res, next) => {
     req.valid = valid;
     next();
 }
+const validateID = (req, res, next) => {
+    if(!req.params.id.match(REGEX_UUID))
+        return res.status(400).send(errors.invalidID);
+    next();
+}
 
 app.post("/records", validateRecordBase, async (req, res) => {
     const record = await pushRecord(req.body.name, req.body.type, req.body.ttl, req.body.value);
     return res.status(201).send(record);
 });
-app.put("/records/:id", validateRecordBase, async (req, res) => {
-    if(!req.params.id.match(REGEX_UUID))
-        return res.status(400).send(errors.invalidID);
+app.get("/records/:id", async (req, res) => {
+    const record = await getRecordByID(req.params.id);
+    if(!record) return res.status(404).send(errors.recordNotFound);
+    return res.status(200).send(record);
+});
+app.delete("/records/:id", async (req, res) => {
+    await deleteRecordByID(req.params.id);
+    return res.status(200).send({ status: "OK" });
+});
+app.put("/records/:id", validateRecordBase, validateID, async (req, res) => {
     const record = await updateRecord(req.params.id, req.body.name, req.body.type, req.body.ttl, req.body.value);
+    if(!record) return res.status(404).send(errors.recordNotFound);
     return res.status(200).send(record);
 });

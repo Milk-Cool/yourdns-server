@@ -58,6 +58,23 @@ export const pushRecord = async (name, type, ttl, value) => {
         [randomUUID(), name, type, ttl, value])).rows?.[0];
 };
 /**
+ * Gets a record by ID.
+ * @param {import("crypto").UUID} id The record's UUID
+ * @returns {Record} The new record
+ */
+export const getRecordByID = async id => {
+    return (await pool.query(`SELECT * FROM records WHERE id = $1`,
+        [id])).rows?.[0];
+};
+/**
+ * Deleted a record by ID.
+ * @param {import("crypto").UUID} id The record's UUID
+ */
+export const deleteRecordByID = async id => {
+    await pool.query(`DELETE FROM records WHERE id = $1`,
+        [id]);
+};
+/**
  * Updates a record in the database.
  * @param {import("crypto").UUID} id The record's UUID
  * @param {RecordType} type The record's type
