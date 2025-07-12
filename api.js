@@ -1,4 +1,4 @@
-import { deleteRecordByID, getRecordByID, pushRecord, recordTypes, updateRecord } from "./index.js";
+import { deleteRecordByID, getRecordByID, getRecordsByBase, pushRecord, recordTypes, updateRecord } from "./index.js";
 import express from "express";
 import Validator from "./validator.js";
 import { REGEX_UUID } from "./regex.js";
@@ -45,16 +45,25 @@ const validateID = (req, res, next) => {
     next();
 }
 
+app.get("/records", async (req, res) => {
+    const valid = new Validator(req.query);
+    if(!valid.str("base", { min: 1 }))
+        return res.status(400).send(errors.badRequest);
+    const { base } = req.query;
+    const records = await getRecordsByBase(base);
+    if(records.length === 0) return res.status(404).send(errors.recordNotFound);
+    return res.status(200).send(records);
+});
 app.post("/records", validateRecordBase, async (req, res) => {
     const record = await pushRecord(req.body.name, req.body.type, req.body.ttl, req.body.value);
     return res.status(201).send(record);
 });
-app.get("/records/:id", async (req, res) => {
+app.get("/records/:id", validateID, async (req, res) => {
     const record = await getRecordByID(req.params.id);
     if(!record) return res.status(404).send(errors.recordNotFound);
     return res.status(200).send(record);
 });
-app.delete("/records/:id", async (req, res) => {
+app.delete("/records/:id", validateID, async (req, res) => {
     await deleteRecordByID(req.params.id);
     return res.status(200).send({ status: "OK" });
 });

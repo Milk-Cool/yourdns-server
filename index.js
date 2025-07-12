@@ -101,6 +101,16 @@ export const getRecords = async name => {
 };
 
 /**
+ * Gets all records with the specified base.
+ * @param {string} base Required base
+ * @returns {Record[]} Matching records
+ */
+export const getRecordsByBase = async base => {
+    return (await pool.query(`SELECT * FROM records
+        WHERE name = $1 OR name LIKE '%.' || $1`, [base])).rows;
+};
+
+/**
  * Gets ALL proxy rules.
  * @returns {ProxyRule[]} Proxy rules
  */
