@@ -50,11 +50,27 @@ export const recordTypes = ["A", "AAAA", "CNAME", "TXT"];
  * @param {RecordType} type The record's type
  * @param {number} ttl TTL
  * @param {string} value Record value
+ * @returns {Record} The new record
  */
 export const pushRecord = async (name, type, ttl, value) => {
-    await pool.query(`INSERT INTO records (id, name, type, ttl, value)
-        VALUES ($1, $2, $3, $4, $5)`,
-        [randomUUID(), name, type, ttl, value]);
+    return (await pool.query(`INSERT INTO records (id, name, type, ttl, value)
+        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [randomUUID(), name, type, ttl, value])).rows?.[0];
+};
+/**
+ * Updates a record in the database.
+ * @param {import("crypto").UUID} id The record's UUID
+ * @param {RecordType} type The record's type
+ * @param {number} ttl TTL
+ * @param {string} value Record value
+ * @returns {Record} The updated record
+ */
+export const updateRecord = async (id, name, type, ttl, value) => {
+    return (await pool.query(`UPDATE records
+        SET name = $2, type = $3, ttl = $4, value = $5
+        WHERE id = $1
+        RETURNING *`,
+        [id, name, type, ttl, value])).rows?.[0];
 };
 
 /**

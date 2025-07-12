@@ -1,6 +1,7 @@
-import { pushRecord, recordTypes } from "./index.js";
+import { pushRecord, recordTypes, updateRecord } from "./index.js";
 import express from "express";
 import Validator from "./validator.js";
+import { REGEX_UUID } from "./regex.js";
 
 /** @typedef {{ error: string }} ErrorObj */
 /**
@@ -14,6 +15,7 @@ const errorMsgs = {
     unauthorized: "Unauthorized!",
     badRequest: "Bad request!",
     invalidType: "Invalid type!",
+    invalidID: "Invalid ID!",
 };
 /** @type {Record<keyof typeof errorMsgs, ErrorObj>} */
 const errors = Object.fromEntries(Object.entries(errorMsgs).map(x => [x[0], makeError(x[1])]));
@@ -26,14 +28,24 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 
-app.post("/records", async (req, res) => {
+const validateRecordBase = (req, res, next) => {
     const valid = new Validator(req.body);
     if(!valid.str("name", { min: 1 }) || !valid.str("type", { min: 1, max: 20 })
             || !valid.int("ttl", { min: 1 }) || !valid.str("value", { min: 1 }))
         return res.status(400).send(errors.badRequest);
     if(!recordTypes.includes(req.body.type))
         return res.status(400).send(errors.invalidType);
+    req.valid = valid;
+    next();
+}
 
-    await pushRecord(req.body.name, req.body.type, req.body.ttl, req.body.value);
-    return res.status(200).send({ message: "OK" });
+app.post("/records", validateRecordBase, async (req, res) => {
+    const record = await pushRecord(req.body.name, req.body.type, req.body.ttl, req.body.value);
+    return res.status(201).send(record);
+});
+app.put("/records/:id", validateRecordBase, async (req, res) => {
+    if(!req.params.id.match(REGEX_UUID))
+        return res.status(400).send(errors.invalidID);
+    const record = await updateRecord(req.params.id, req.body.name, req.body.type, req.body.ttl, req.body.value);
+    return res.status(200).send(record);
 });
