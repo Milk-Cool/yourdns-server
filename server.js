@@ -31,13 +31,18 @@ const server = dns2.createServer({
         const records = await getRecords(name);
         if(records.length > 0) {
             for(const record of records)
-                res.answers.push({
+                res.answers.push(Object.assign({
                     mame: record.name,
                     type: Packet.TYPE[record.type],
                     class: Packet.CLASS.IN,
-                    ttl: record.ttl,
+                    ttl: record.ttl
+                }, record.type === "CNAME" ? {
+                    domain: record.value
+                } : record.type === "TXT" ? {
+                    data: record.value
+                } : {
                     address: record.value
-                });
+                }));
             send(res);
             return;
         }
