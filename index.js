@@ -97,7 +97,9 @@ export const updateRecord = async (id, name, type, ttl, value) => {
  */
 export const getRecords = async name => {
     return (await pool.query(`SELECT * FROM records
-        WHERE name = $1`, [name])).rows;
+        WHERE $1 LIKE replace(name, '*', '%')
+        AND array_length(string_to_array(name, '.'), 1)
+        = array_length(string_to_array($1, '.'), 1)`, [name])).rows;
 };
 
 /**
