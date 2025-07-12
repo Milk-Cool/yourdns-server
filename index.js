@@ -1,0 +1,88 @@
+import { randomUUID } from "crypto";
+import { Pool } from "pg";
+
+export const pool = new Pool({
+    host: process.env.POSTGRES_HOST,
+    user: process.env.POSTGRES_USER,
+    password: process.env.POSTGRES_PASSWORD,
+    database: process.env.POSTGRES_DB
+});
+
+/**
+ * @typedef {object} Record A record
+ * @prop {string} name The domain name
+ * @prop {RecordType} type The record type
+ * @prop {number} ttl TTL
+ * @prop {stirng} value Record value
+ */
+/**
+ * @typedef {object} ProxyRule A proxy rule
+ * @prop {import("crypto").UUID} id Rule UUID
+ * @prop {string} rule Rule as regex
+ * @prop {string} addr Address of server to proxy the request to
+ */
+export const init = async () => {
+    await pool.query(`CREATE TABLE IF NOT EXISTS proxy_rules (
+        id uuid UNIQUE NOT NULL,
+        rule TEXT NOT NULL,
+        addr TEXT NOT NULL,
+        
+        PRIMARY KEY (id)
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS records (
+        id uuid UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        type varchar(20) NOT NULL,
+        ttl INTEGER NOT NULL,
+        value TEXT,
+        
+        PRIMARY KEY (id)
+    )`);
+};
+
+export const deinit = async () => await pool.end();
+
+export const recordTypes = ["A", "AAAA", "CNAME", "TXT"];
+/** @typedef {"A" | "AAAA" | "CNAME" | "TXT"} RecordType */
+
+/**
+ * Pushes a new record to the database.
+ * @param {RecordType} type The record's type
+ * @param {number} ttl TTL
+ * @param {string} value Record value
+ */
+export const pushRecord = async (name, type, ttl, value) => {
+    await pool.query(`INSERT INTO records (id, name, type, ttl, value)
+        VALUES ($1, $2, $3, $4, $5)`,
+        [randomUUID(), name, type, ttl, value]);
+};
+
+/**
+ * Gets all matching records.
+ * @param {string} name Required name
+ * @returns {Record[]} Matching records
+ */
+export const getRecords = async name => {
+    return (await pool.query(`SELECT * FROM records
+        WHERE name = $1`, [name])).rows;
+};
+
+/**
+ * Gets ALL proxy rules.
+ * @returns {ProxyRule[]} Proxy rules
+ */
+export const getAllProxyRules = async () => {
+    return (await pool.query(`SELECT * FROM proxy_rules`)).rows;
+};
+
+/**
+ * Gets the DNS server to ask by domain (or null if we have to resolve ourselves).
+ * @param {string} domain The domain to check
+ * @returns {string | null} The DNS server or null if domain doesn't match anything
+ */
+export const getProxyDNS = async domain => {
+    const rules = await getAllProxyRules();
+    for(const rule of rules)
+        if(domain.match(new RegExp(rule.rule))) return rule.addr;
+    return null;
+}
