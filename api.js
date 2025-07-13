@@ -1,4 +1,4 @@
-import { deleteRecordByID, getRecordByID, getRecordsByBase, pushRecord, recordTypes, updateRecord } from "./index.js";
+import { deleteProxyRule, deleteRecordByID, getAllProxyRules, getRecordByID, getRecordsByBase, pushProxyRule, pushRecord, recordTypes, updateProxyRule, updateRecord } from "./index.js";
 import express from "express";
 import Validator from "./validator.js";
 import { REGEX_UUID } from "./regex.js";
@@ -17,6 +17,8 @@ const errorMsgs = {
     invalidType: "Invalid type!",
     invalidID: "Invalid ID!",
     recordNotFound: "Record not found!",
+    invalidRegex: "Invalid regex!",
+    ruleNotFound: "Rule not found!",
 };
 /** @type {Record<keyof typeof errorMsgs, ErrorObj>} */
 const errors = Object.fromEntries(Object.entries(errorMsgs).map(x => [x[0], makeError(x[1])]));
@@ -36,6 +38,18 @@ const validateRecordBase = (req, res, next) => {
         return res.status(400).send(errors.badRequest);
     if(!recordTypes.includes(req.body.type))
         return res.status(400).send(errors.invalidType);
+    req.valid = valid;
+    next();
+}
+const validateProxyRule = (req, res, next) => {
+    const valid = new Validator(req.body);
+    if(!valid.str("addr", { min: 1 }) || !valid.str("rule", { min: 1 }))
+        return res.status(400).send(errors.badRequest);
+    try {
+        new RegExp(req.body.rule);
+    } catch(_) {
+        return res.status(400).send(errors.invalidRegex);
+    }
     req.valid = valid;
     next();
 }
@@ -71,4 +85,22 @@ app.put("/records/:id", validateRecordBase, validateID, async (req, res) => {
     const record = await updateRecord(req.params.id, req.body.name, req.body.type, req.body.ttl, req.body.value);
     if(!record) return res.status(404).send(errors.recordNotFound);
     return res.status(200).send(record);
+});
+
+app.get("/rules", async (req, res) => {
+    const rules = await getAllProxyRules();
+    return res.status(200).send(rules);
+});
+app.post("/rules", validateProxyRule, async (req, res) => {
+    const rule = await pushProxyRule(req.body.rule, req.body.addr);
+    return res.status(200).send(rule);
+});
+app.put("/rules/:id", validateProxyRule, validateID, async (req, res) => {
+    const rule = await updateProxyRule(req.params.id, req.body.rule, req.body.addr);
+    if(!rule) return res.status(404).send(errors.ruleNotFound);
+    return res.status(200).send(rule);
+});
+app.delete("/rules/:id", validateID, async (req, res) => {
+    await deleteProxyRule(req.params.id);
+    return res.status(200).send({ status: "OK" });
 });

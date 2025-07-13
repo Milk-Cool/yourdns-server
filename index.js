@@ -131,3 +131,39 @@ export const getProxyDNS = async domain => {
         if(domain.match(new RegExp(rule.rule))) return rule.addr;
     return null;
 }
+
+/**
+ * Pushes a new proxy rule to the database.
+ * @param {string} ruleRegex Rule as a string RegEx
+ * @param {string} addr Address of DNS server to ask
+ * @returns {ProxyRule} The proxy rule
+ */
+export const pushProxyRule = async (ruleRegex, addr) => {
+    return (await pool.query(`INSERT INTO proxy_rules (id, rule, addr)
+        VALUES ($1, $2, $3) RETURNING *`,
+        [randomUUID(), ruleRegex, addr])).rows?.[0];
+};
+
+/**
+ * Updates a proxy rule to the database.
+ * @param {import("crypto").UUID} id Rule ID
+ * @param {string} ruleRegex Rule as a string RegEx
+ * @param {string} addr Address of DNS server to ask
+ * @returns {ProxyRule} The proxy rule
+ */
+export const updateProxyRule = async (id, ruleRegex, addr) => {
+    return (await pool.query(`UPDATE proxy_rules
+        SET rule = $2, addr = $3
+        WHERE id = $1
+        RETURNING *`,
+        [id, ruleRegex, addr])).rows?.[0];
+};
+
+/**
+ * Updates a proxy rule to the database.
+ * @param {import("crypto").UUID} id Rule ID
+ */
+export const deleteProxyRule = async id => {
+    await pool.query(`DELETE FROM proxy_rules WHERE id = $1`,
+        [id]);
+};
