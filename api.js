@@ -1,4 +1,4 @@
-import { deleteProxyRule, deleteRecordByID, getAllProxyRules, getRecordByID, getRecordsByBase, pushProxyRule, pushRecord, recordTypes, updateProxyRule, updateRecord } from "./index.js";
+import { deleteProxyRule, deleteRecordByID, getAllProxyRules, getRecordByID, getRecords, getRecordsByBase, pushProxyRule, pushRecord, recordTypes, updateProxyRule, updateRecord } from "./index.js";
 import express from "express";
 import Validator from "./validator.js";
 import { REGEX_UUID } from "./regex.js";
@@ -58,6 +58,11 @@ const validateID = (req, res, next) => {
         return res.status(400).send(errors.invalidID);
     next();
 }
+
+app.get("/resolve/:domain", async (req, res) => {
+    const records = await getRecords(req.params.domain);
+    return res.status(200).send(records);
+});
 
 app.get("/records", async (req, res) => {
     const valid = new Validator(req.query);
