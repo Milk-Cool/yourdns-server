@@ -36,6 +36,7 @@ export const init = async () => {
         type varchar(20) NOT NULL,
         ttl INTEGER NOT NULL,
         value TEXT,
+        timestamp NUMERIC NOT NULL,
         
         PRIMARY KEY (id)
     )`);
@@ -54,9 +55,9 @@ export const recordTypes = ["A", "AAAA", "CNAME", "TXT"];
  * @returns {Record} The new record
  */
 export const pushRecord = async (name, type, ttl, value) => {
-    return (await pool.query(`INSERT INTO records (id, name, type, ttl, value)
-        VALUES ($1, LOWER($2), $3, $4, $5) RETURNING *`,
-        [randomUUID(), name, type, ttl, value])).rows?.[0];
+    return (await pool.query(`INSERT INTO records (id, name, type, ttl, value, timestamp)
+        VALUES ($1, LOWER($2), $3, $4, $5, $6) RETURNING *`,
+        [randomUUID(), name, type, ttl, value, Date.now()])).rows?.[0];
 };
 /**
  * Gets a record by ID.
@@ -100,7 +101,8 @@ export const getRecords = async name => {
     return (await pool.query(`SELECT * FROM records
         WHERE LOWER($1) LIKE replace(name, '*', '%')
         AND array_length(string_to_array(name, '.'), 1)
-        = array_length(string_to_array($1, '.'), 1)`, [name])).rows;
+        = array_length(string_to_array($1, '.'), 1)
+        ORDER BY timestamp ASC`, [name])).rows;
 };
 
 /**
@@ -110,7 +112,8 @@ export const getRecords = async name => {
  */
 export const getRecordsByBase = async base => {
     return (await pool.query(`SELECT * FROM records
-        WHERE name = LOWER($1) OR name LIKE '%.' || LOWER($1)`, [base])).rows;
+        WHERE name = LOWER($1) OR name LIKE '%.' || LOWER($1)
+        ORDER BY timestamp ASC`, [base])).rows;
 };
 
 /**
@@ -177,5 +180,6 @@ export const findByOwner = async owner => {
     return (await pool.query(`SELECT * FROM records
         WHERE name LIKE '-.%'
         AND type = 'TXT'
-        AND value = $1`, [owner])).rows;
+        AND value = $1
+        ORDER BY timestamp ASC`, [owner])).rows;
 };
