@@ -32,7 +32,7 @@ const server = dns2.createServer({
         if(records.length > 0) {
             for(const record of records)
                 res.answers.push(Object.assign({
-                    mame: record.name,
+                    name,
                     type: Packet.TYPE[record.type],
                     class: Packet.CLASS.IN,
                     ttl: record.ttl
