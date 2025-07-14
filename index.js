@@ -54,7 +54,7 @@ export const recordTypes = ["A", "AAAA", "CNAME", "TXT"];
  */
 export const pushRecord = async (name, type, ttl, value) => {
     return (await pool.query(`INSERT INTO records (id, name, type, ttl, value)
-        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        VALUES ($1, LOWER($2), $3, $4, $5) RETURNING *`,
         [randomUUID(), name, type, ttl, value])).rows?.[0];
 };
 /**
@@ -84,7 +84,7 @@ export const deleteRecordByID = async id => {
  */
 export const updateRecord = async (id, name, type, ttl, value) => {
     return (await pool.query(`UPDATE records
-        SET name = $2, type = $3, ttl = $4, value = $5
+        SET name = LOWER($2), type = $3, ttl = $4, value = $5
         WHERE id = $1
         RETURNING *`,
         [id, name, type, ttl, value])).rows?.[0];
@@ -97,7 +97,7 @@ export const updateRecord = async (id, name, type, ttl, value) => {
  */
 export const getRecords = async name => {
     return (await pool.query(`SELECT * FROM records
-        WHERE $1 LIKE replace(name, '*', '%')
+        WHERE LOWER($1) LIKE replace(name, '*', '%')
         AND array_length(string_to_array(name, '.'), 1)
         = array_length(string_to_array($1, '.'), 1)`, [name])).rows;
 };
@@ -109,7 +109,7 @@ export const getRecords = async name => {
  */
 export const getRecordsByBase = async base => {
     return (await pool.query(`SELECT * FROM records
-        WHERE name = $1 OR name LIKE '%.' || $1`, [base])).rows;
+        WHERE name = LOWER($1) OR name LIKE '%.' || LOWER($1)`, [base])).rows;
 };
 
 /**
@@ -128,7 +128,7 @@ export const getAllProxyRules = async () => {
 export const getProxyDNS = async domain => {
     const rules = await getAllProxyRules();
     for(const rule of rules)
-        if(domain.match(new RegExp(rule.rule))) return rule.addr;
+        if(domain.match(new RegExp(rule.rule, "i"))) return rule.addr;
     return null;
 }
 
