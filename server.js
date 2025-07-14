@@ -17,6 +17,18 @@ const server = dns2.createServer({
         const res = Packet.createResponseFromRequest(req);
         const [ question ] = req.questions;
         const { name } = question;
+
+        if(name.startsWith("-.")) {
+            res.answers = [{
+                name: name,
+                type: Packet.TYPE.A,
+                class: Packet.CLASS.IN,
+                ttl: 604800,
+                address: "0.0.0.0"
+            }];
+            send(res);
+            return;
+        }
         
         const toAsk = await getProxyDNS(name);
         if(toAsk !== null) {

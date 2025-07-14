@@ -167,3 +167,14 @@ export const deleteProxyRule = async id => {
     await pool.query(`DELETE FROM proxy_rules WHERE id = $1`,
         [id]);
 };
+
+/**
+ * Finds all owner records by its owner.
+ * @param {string} owner String identifying owner (ID/email)
+ */
+export const findByOwner = async owner => {
+    return (await pool.query(`SELECT * FROM records
+        WHERE name LIKE '-.%'
+        AND type = 'TXT'
+        AND value = $1`, [owner])).rows;
+};
