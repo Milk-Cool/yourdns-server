@@ -10,6 +10,7 @@ export const pool = new Pool({
 
 /**
  * @typedef {object} Record A record
+ * @prop {import("crypto").UUID} id Record UUID
  * @prop {string} name The domain name
  * @prop {RecordType} type The record type
  * @prop {number} ttl TTL
