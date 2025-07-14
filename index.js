@@ -77,6 +77,14 @@ export const deleteRecordByID = async id => {
         [id]);
 };
 /**
+ * Deleted a record by its name.
+ * @param {string} name The record's name
+ */
+export const deleteRecordByName = async name => {
+    await pool.query(`DELETE FROM records WHERE name = $1`,
+        [name]);
+};
+/**
  * Updates a record in the database.
  * @param {import("crypto").UUID} id The record's UUID
  * @param {RecordType} type The record's type

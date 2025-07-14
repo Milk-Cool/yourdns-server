@@ -1,4 +1,4 @@
-import { deleteProxyRule, deleteRecordByID, findByOwner, getAllProxyRules, getRecordByID, getRecords, getRecordsByBase, pushProxyRule, pushRecord, recordTypes, updateProxyRule, updateRecord } from "./index.js";
+import { deleteProxyRule, deleteRecordByID, deleteRecordByName, findByOwner, getAllProxyRules, getRecordByID, getRecords, getRecordsByBase, pushProxyRule, pushRecord, recordTypes, updateProxyRule, updateRecord } from "./index.js";
 import express from "express";
 import Validator from "./validator.js";
 import { REGEX_UUID } from "./regex.js";
@@ -88,6 +88,13 @@ app.get("/records/:id", validateID, async (req, res) => {
 });
 app.delete("/records/:id", validateID, async (req, res) => {
     await deleteRecordByID(req.params.id);
+    return res.status(200).send({ status: "OK" });
+});
+app.delete("/records", async (req, res) => {
+    const valid = new Validator(req.query);
+    if(!valid.str("name", { min: 1 }))
+        return res.status(400).send(errors.badRequest);
+    await deleteRecordByName(req.query.name);
     return res.status(200).send({ status: "OK" });
 });
 app.put("/records/:id", validateRecordBase, validateID, async (req, res) => {
