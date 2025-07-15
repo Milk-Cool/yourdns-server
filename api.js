@@ -122,6 +122,10 @@ app.delete("/rules/:id", validateID, async (req, res) => {
     return res.status(200).send({ status: "OK" });
 });
 
+app.get("/ca", async (_req, res) => {
+    const certData = await getCert(".");
+    return res.status(200).send(certData.cert);
+});
 app.get("/cert/:domain", async (req, res) => {
     if(req.params.domain === ".") return res.status(403).send({ status: "CA" });
     const certData = await getCert(req.params.domain);
