@@ -19,6 +19,7 @@ const errorMsgs = {
     recordNotFound: "Record not found!",
     invalidRegex: "Invalid regex!",
     ruleNotFound: "Rule not found!",
+    domainNotFound: "Domain not found!",
 };
 /** @type {Record<keyof typeof errorMsgs, ErrorObj>} */
 const errors = Object.fromEntries(Object.entries(errorMsgs).map(x => [x[0], makeError(x[1])]));
@@ -124,7 +125,7 @@ app.delete("/rules/:id", validateID, async (req, res) => {
 app.get("/cert/:domain", async (req, res) => {
     if(req.params.domain === ".") return res.status(403).send({ status: "CA" });
     const certData = await getCert(req.params.domain);
-    if(!certData) return res.status(404).send({ error: "Not found" });
+    if(!certData) return res.status(404).send(errors.domainNotFound);
     return res.status(200).send(certData);
 });
 app.get("/certbase/:domain", async (req, res) => {
