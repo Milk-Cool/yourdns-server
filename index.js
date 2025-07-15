@@ -223,10 +223,10 @@ export const findByOwner = async owner => {
         ORDER BY timestamp ASC`, [owner])).rows;
 };
 
-const buf2hex = obj => Object.fromEntries(Object.entries(obj).map(x => {
+const buf2hex = obj => typeof obj === "object" ? Object.fromEntries(Object.entries(obj).map(x => {
     if(x[1] instanceof Buffer) return [x[0], x[1].toString("hex")];
     return x;
-}));
+})) : obj;
 
 /**
  * Gets a cert/key pair for a domain.
@@ -290,7 +290,7 @@ export const generateCert = async (domain, ca = false) => {
 
         const caCert = await getCert(".");
         const privateKey = pki.privateKeyFromAsn1(
-            asn1.fromDer(caCert.key.toString("binary"))
+            asn1.fromDer(Buffer.from(caCert.key, "hex").toString("binary"))
         );
         cert.sign(privateKey);
     }
