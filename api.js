@@ -1,4 +1,4 @@
-import { deleteProxyRule, deleteRecordByID, deleteRecordByName, findByOwner, getAllProxyRules, getRecordByID, getRecords, getRecordsByBase, pushProxyRule, pushRecord, recordTypes, updateProxyRule, updateRecord } from "./index.js";
+import { deleteProxyRule, deleteRecordByID, deleteRecordByName, findByOwner, generateCert, getAllProxyRules, getCert, getCertsByBase, getRecordByID, getRecords, getRecordsByBase, pushProxyRule, pushRecord, recordTypes, updateProxyRule, updateRecord } from "./index.js";
 import express from "express";
 import Validator from "./validator.js";
 import { REGEX_UUID } from "./regex.js";
@@ -103,7 +103,7 @@ app.put("/records/:id", validateRecordBase, validateID, async (req, res) => {
     return res.status(200).send(record);
 });
 
-app.get("/rules", async (req, res) => {
+app.get("/rules", async (_req, res) => {
     const rules = await getAllProxyRules();
     return res.status(200).send(rules);
 });
@@ -119,4 +119,21 @@ app.put("/rules/:id", validateProxyRule, validateID, async (req, res) => {
 app.delete("/rules/:id", validateID, async (req, res) => {
     await deleteProxyRule(req.params.id);
     return res.status(200).send({ status: "OK" });
+});
+
+app.get("/cert/:domain", async (req, res) => {
+    if(req.params.domain === ".") return res.status(403).send({ status: "CA" });
+    const certData = await getCert(req.params.domain);
+    if(!certData) return res.status(404).send({ error: "Not found" });
+    return res.status(200).send(certData);
+});
+app.get("/certbase/:domain", async (req, res) => {
+    if(req.params.domain === ".") return res.status(403).send({ status: "CA" });
+    const certsData = await getCertsByBase(req.params.domain);
+    return res.status(200).send(certsData);
+});
+app.post("/cert/:domain", async (req, res) => {
+    if(req.params.domain === ".") return res.status(403).send({ status: "CA" });
+    const certData = await generateCert(req.params.domain);
+    return res.status(200).send(certData);
 });

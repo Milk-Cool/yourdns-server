@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
 import { Pool } from "pg";
+import forge from "node-forge";
+const { pki, asn1 } = forge;
+
+const VALID_MS = 365 * 24 * 3600 * 1000;
+const VALID_MS_CA = 25 * VALID_MS;
+const CA_NAME = "yourdns";
 
 export const pool = new Pool({
     host: process.env.POSTGRES_HOST,
@@ -22,6 +28,15 @@ export const pool = new Pool({
  * @prop {string} rule Rule as regex
  * @prop {string} addr Address of server to proxy the request to
  */
+/**
+ * @typedef {object} CertPair A key and certificate pair
+ * @prop {import("crypto").UUID} id Pair UUID
+ * @prop {string} domain Pair domain
+ * @prop {string} key Key (hex)
+ * @prop {string} cert Cert (hex)
+ * @prop {string} timestamp Creation timestamp (decimal string)
+ * @prop {string} until Expiry timestamp (decimal string)
+ */
 export const init = async () => {
     await pool.query(`CREATE TABLE IF NOT EXISTS proxy_rules (
         id uuid UNIQUE NOT NULL,
@@ -40,6 +55,21 @@ export const init = async () => {
         
         PRIMARY KEY (id)
     )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS certs (
+        id uuid UNIQUE NOT NULL,
+        domain TEXT NOT NULL,
+
+        key bytea NOT NULL,
+        cert bytea NOT NULL,
+
+        timestamp NUMERIC NOT NULL,
+        until NUMERIC NOT NULL,
+
+        PRIMARY KEY (id)
+    )`);
+
+    if(!(await getCert(".")))
+        await generateCert(".", true);
 };
 
 export const deinit = async () => await pool.end();
@@ -183,6 +213,7 @@ export const deleteProxyRule = async id => {
 /**
  * Finds all owner records by its owner.
  * @param {string} owner String identifying owner (ID/email)
+ * @returns {Record[]}
  */
 export const findByOwner = async owner => {
     return (await pool.query(`SELECT * FROM records
@@ -191,3 +222,85 @@ export const findByOwner = async owner => {
         AND value = $1
         ORDER BY timestamp ASC`, [owner])).rows;
 };
+
+const buf2hex = obj => Object.fromEntries(Object.entries(obj).map(x => {
+    if(x[1] instanceof Buffer) return [x[0], x[1].toString("hex")];
+    return x;
+}));
+
+/**
+ * Gets a cert/key pair for a domain.
+ * @param {string} domain Domain
+ * @returns {CertPair} The cert/key pair
+ */
+export const getCert = async domain => {
+    return buf2hex((await pool.query(`SELECT * FROM certs
+        WHERE domain = $1`, [domain])).rows?.[0]);
+}
+/**
+ * Gets all cert/key pairs for all doains matching the given 2nd-level domain.
+ * @param {string} base 2nd-level domain
+ * @returns {CertPair[]} The cert/key pairs
+ */
+export const getCertsByBase = async base => {
+    return (await pool.query(`SELECT * FROM certs
+        WHERE (domain = $1 OR domain LIKE '%.' || $1) AND domain != '-.' || $1`, [base])).rows.map(buf2hex);
+}
+/**
+ * Deletes a cert/key pair by ID.
+ * @param {import("crypto").UUID} id ID
+ */
+export const removeCertByID = async id => {
+    await pool.query(`DELETE FROM certs WHERE id = $1`, [id]);
+}
+
+/**
+ * Generates a cert/key pair.
+ * @param {string} domain Domain for the cert
+ * @param {boolean} ca Whether to generate a CA
+ * @returns {CertPair} The cert/key pair
+ */
+export const generateCert = async (domain, ca = false) => {
+    const old = await getCert(domain);
+
+    const id = randomUUID();
+    const keys = pki.rsa.generateKeyPair(2048);
+    const cert = pki.createCertificate();
+    cert.publicKey = keys.publicKey;
+    cert.serialNumber = id.replaceAll("-", "");
+
+    const now = new Date();
+    const until = new Date(now.getTime() + (ca ? VALID_MS_CA : VALID_MS));
+    cert.validity.notBefore = now;
+    cert.validity.notAfter = until;
+
+    const rootAttrs = [{ name: "commonName", value: CA_NAME }];
+    if(ca) {
+        cert.setSubject(rootAttrs);
+        cert.setIssuer(rootAttrs);
+        cert.setExtensions([
+            { name: "basicConstraints", cA: true },
+            { name: "keyUsage", keyCertSign: true, digitalSignature: true, cRLSign: true },
+        ]);
+        cert.sign(keys.privateKey);
+    } else {
+        const attrs = [{ name: "commonName", value: domain }];
+        cert.setSubject(attrs);
+        cert.setIssuer(rootAttrs);
+
+        const caCert = await getCert(".");
+        const privateKey = pki.privateKeyFromAsn1(
+            asn1.fromDer(caCert.key.toString("binary"))
+        );
+        cert.sign(privateKey);
+    }
+
+    const keyBin = Buffer.from(asn1.toDer(pki.privateKeyToAsn1(keys.privateKey)).getBytes(), "binary");
+    const certBin = Buffer.from(asn1.toDer(pki.certificateToAsn1(cert)).getBytes(), "binary");
+
+    if(old) await removeCertByID(old.id);
+    return buf2hex((await pool.query(`INSERT INTO certs (id, domain, key, cert, timestamp, until)
+        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`, [id, ca ? "." : domain,
+            keyBin, certBin,
+            now.getTime(), until.getTime()])).rows?.[0]);
+}
