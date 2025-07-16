@@ -288,6 +288,9 @@ export const generateCert = async (domain, ca = false) => {
         const attrs = [{ name: "commonName", value: domain }];
         cert.setSubject(attrs);
         cert.setIssuer(rootAttrs);
+        cert.setExtensions([
+            { name: "subjectAltName", altNames: [{ type: 2, value: domain }] }
+        ]);
 
         const caCert = await getCert(".");
         const privateKey = pki.privateKeyFromAsn1(
