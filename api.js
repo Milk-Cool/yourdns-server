@@ -147,3 +147,11 @@ app.post("/cert/:domain", async (req, res) => {
     const certData = await generateCert(req.params.domain);
     return res.status(200).send(certData);
 });
+
+app.post("/delete/:domain", async (req, res) => {
+    for(const record of await getRecordsByBase(req.params.domain))
+        await deleteRecordByID(record.id);
+    for(const cert of await getCertsByBase(req.params.domain))
+        await deleteCert(cert.domain);
+    return res.status(200).send({ status: "OK" });
+});
