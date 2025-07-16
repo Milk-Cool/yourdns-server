@@ -238,6 +238,14 @@ export const getCert = async domain => {
         WHERE domain = $1`, [domain])).rows?.[0]);
 }
 /**
+ * Deletes a cert/key pair for a domain.
+ * @param {string} domain Domain
+ */
+export const deleteCert = async domain => {
+    await pool.query(`DELETE FROM certs
+        WHERE domain = $1`, [domain]);
+}
+/**
  * Gets all cert/key pairs for all doains matching the given 2nd-level domain.
  * @param {string} base 2nd-level domain
  * @returns {CertPair[]} The cert/key pairs

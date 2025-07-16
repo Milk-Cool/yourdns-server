@@ -1,4 +1,4 @@
-import { deleteProxyRule, deleteRecordByID, deleteRecordByName, findByOwner, generateCert, getAllProxyRules, getCert, getCertsByBase, getRecordByID, getRecords, getRecordsByBase, pushProxyRule, pushRecord, recordTypes, updateProxyRule, updateRecord } from "./index.js";
+import { deleteCert, deleteProxyRule, deleteRecordByID, deleteRecordByName, findByOwner, generateCert, getAllProxyRules, getCert, getCertsByBase, getRecordByID, getRecords, getRecordsByBase, pushProxyRule, pushRecord, recordTypes, updateProxyRule, updateRecord } from "./index.js";
 import express from "express";
 import Validator from "./validator.js";
 import { REGEX_UUID } from "./regex.js";
@@ -131,6 +131,11 @@ app.get("/cert/:domain", async (req, res) => {
     const certData = await getCert(req.params.domain);
     if(!certData) return res.status(404).send(errors.domainNotFound);
     return res.status(200).send(certData);
+});
+app.delete("/cert/:domain", async (req, res) => {
+    if(req.params.domain === ".") return res.status(403).send({ status: "CA" });
+    await deleteCert(req.params.domain);
+    return res.status(200).send({ status: "OK" });
 });
 app.get("/certbase/:domain", async (req, res) => {
     if(req.params.domain === ".") return res.status(403).send({ status: "CA" });
