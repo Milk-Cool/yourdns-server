@@ -275,6 +275,7 @@ export const generateCert = async (domain, ca = false) => {
     cert.validity.notAfter = until;
 
     const rootAttrs = [{ name: "commonName", value: CA_NAME }];
+    const hash = forge.md.sha256.create();
     if(ca) {
         cert.setSubject(rootAttrs);
         cert.setIssuer(rootAttrs);
@@ -282,7 +283,7 @@ export const generateCert = async (domain, ca = false) => {
             { name: "basicConstraints", cA: true },
             { name: "keyUsage", keyCertSign: true, digitalSignature: true, cRLSign: true },
         ]);
-        cert.sign(keys.privateKey);
+        cert.sign(keys.privateKey, hash);
     } else {
         const attrs = [{ name: "commonName", value: domain }];
         cert.setSubject(attrs);
@@ -292,7 +293,7 @@ export const generateCert = async (domain, ca = false) => {
         const privateKey = pki.privateKeyFromAsn1(
             asn1.fromDer(Buffer.from(caCert.key, "hex").toString("binary"))
         );
-        cert.sign(privateKey);
+        cert.sign(privateKey, hash);
     }
 
     const keyBin = Buffer.from(asn1.toDer(pki.privateKeyToAsn1(keys.privateKey)).getBytes(), "binary");
