@@ -26,6 +26,7 @@ const errors = Object.fromEntries(Object.entries(errorMsgs).map(x => [x[0], make
 
 export const app = express();
 app.use((req, res, next) => {
+    if(req.originalUrl === "/") return next();
     if(req.headers.authorization?.replace?.(/^Bearer\s*/, "") !== process.env.ADMIN_KEY)
         return res.status(401).send(errors.unauthorized);
     next();
@@ -154,4 +155,8 @@ app.post("/delete/:domain", async (req, res) => {
     for(const cert of await getCertsByBase(req.params.domain))
         await deleteCert(cert.domain);
     return res.status(200).send({ status: "OK" });
+});
+
+app.get("/", (_req, res) => {
+    res.send("yourdns");
 });
